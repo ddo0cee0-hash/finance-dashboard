@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>내 재정 대시보드</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#e4e4e4;--card:#fff;--bd:rgba(0,0,0,.08);--text:#1a1a1a;
+  --sub:#666;--mu:#999;--r:14px;--gap:10px;
+  --G:#4a9c1f;--B:#378ADD;--R:#E07070;
+  --hbg:#fff;--ibg:#f5f5f5;--dv:rgba(0,0,0,.09);
+  --toast:rgba(20,20,20,.88);
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#1a1a1a;--card:#242424;--bd:rgba(255,255,255,.08);
+  --text:#f0f0f0;--sub:#aaa;--mu:#5a5a5a;
+  --hbg:#1e1e1e;--ibg:#2c2c2c;--dv:rgba(255,255,255,.08);
+}}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Noto Sans KR',sans-serif;
+  font-size:14px;background:var(--bg);color:var(--text);
+  max-width:480px;margin:0 auto;min-height:100vh;padding-bottom:56px;
+}
+
+/* ── 헤더 ── */
+.shd{position:sticky;top:0;z-index:100;background:var(--hbg);border-bottom:.5px solid var(--bd);padding:11px 16px 0;}
+.shd-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.app-ttl{font-size:17px;font-weight:700;letter-spacing:-.3px;}
+.app-sub{font-size:10px;color:var(--mu);margin-top:1px;}
+.shd-date{font-size:11px;color:var(--mu);}
+.tbar{display:flex;}
+.tbtn{flex:1;background:none;border:none;cursor:pointer;padding:8px 4px 10px;
+  font-size:13px;font-weight:500;color:var(--mu);position:relative;font-family:inherit;}
+.tbtn.on{color:var(--G);font-weight:700;}
+.tbtn.on::after{content:'';position:absolute;bottom:0;left:0;right:0;
+  height:2.5px;background:var(--G);border-radius:2px 2px 0 0;}
+
+/* ── 탭 콘텐츠 ── */
+.tc{display:none;padding:var(--gap);flex-direction:column;gap:var(--gap);}
+.tc.on{display:flex;}
+
+/* ── 카드 ── */
+.card{background:var(--card);border:.5px solid var(--bd);border-radius:var(--r);padding:14px;}
+.ch{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.ct{font-size:13px;font-weight:700;}
+
+/* ── 버튼 ── */
+.btn{background:var(--ibg);border:.5px solid var(--bd);border-radius:8px;
+  padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;color:var(--text);font-family:inherit;}
+.btn.g{background:var(--G);color:#fff;border-color:var(--G);}
+.btn.ghost{background:none;border-color:var(--bd);}
+
+/* ── 년월 선택 구분자 ── */
+.ym-wrap{display:flex;align-items:center;gap:6px;}
+.ym-btn{background:none;border:none;cursor:pointer;padding:4px 2px;
+  font-size:18px;color:var(--mu);line-height:1;font-family:inherit;}
+.ym-btn:active{opacity:.5;}
+.ym-label{font-size:14px;font-weight:700;color:var(--text);min-width:52px;text-align:center;letter-spacing:-.2px;}
+
+/* ── 입력 필드 ── */
+.ifield{background:var(--ibg);border:.5px solid var(--bd);border-radius:8px;
+  padding:0 10px;height:36px;font-size:13px;color:var(--text);
+  font-family:inherit;width:100%;outline:none;-moz-appearance:textfield;}
+.ifield::-webkit-outer-spin-button,.ifield::-webkit-inner-spin-button{-webkit-appearance:none;}
+.ifield:focus{border-color:var(--G);}
+.ifield.sel{appearance:none;cursor:pointer;}
+.irow{margin-bottom:10px;}
+.irow label{display:block;font-size:11px;font-weight:700;color:var(--sub);margin-bottom:4px;}
+.i2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+/* ── 지출 레코드 리스트 ── */
+.exp-list{display:flex;flex-direction:column;gap:0;}
+.exp-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 0;border-bottom:.5px solid var(--dv);
+}
+.exp-item:last-child{border-bottom:none;padding-bottom:0;}
+.exp-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;
+  justify-content:center;font-size:16px;flex-shrink:0;}
+.exp-info{flex:1;min-width:0;}
+.exp-name{font-size:13px;font-weight:700;margin-bottom:1px;}
+.exp-meta{font-size:10px;color:var(--mu);}
+.exp-amt{font-size:13px;font-weight:700;text-align:right;flex-shrink:0;}
+.exp-del{background:none;border:none;color:var(--mu);cursor:pointer;
+  font-size:14px;padding:4px;flex-shrink:0;line-height:1;}
+
+/* ── 지출 합계 행 ── */
+.exp-sum{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:10px 0 0;border-top:.5px solid var(--dv);margin-top:2px;
+}
+.exp-sum-lbl{font-size:12px;color:var(--mu);}
+.exp-sum-val{font-size:14px;font-weight:800;}
+
+/* ── KPI ── */
+.kgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.kbox{background:var(--ibg);border-radius:10px;padding:10px;text-align:center;}
+.kl{font-size:10px;color:var(--mu);margin-bottom:3px;}
+.kv{font-size:15px;font-weight:700;}
+.cb{color:var(--B);}.cg{color:var(--G);}.cr{color:var(--R);}
+/* 이익·수입=초록, 손실·지출=연한빨강 */
+.p-pos{color:var(--G);}.p-neg{color:var(--R);}
+
+/* ── 진행바 ── */
+.pbar{margin-bottom:0;}
+.pm{display:flex;justify-content:space-between;font-size:10px;color:var(--mu);margin-bottom:4px;}
+.pt{height:6px;background:var(--ibg);border-radius:4px;overflow:hidden;}
+.pf{height:100%;border-radius:4px;transition:width .4s;}
+
+/* ── 꺾은선 ── */
+.cwrap{height:110px;position:relative;}
+
+/* ── 구분선 ── */
+.dv{height:.5px;background:var(--dv);margin:12px 0;}
+.sl{font-size:10px;font-weight:700;color:var(--mu);letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px;}
+
+/* ── 주식 테이블 ── */
+.stbl{width:100%;border-collapse:collapse;}
+.stbl th{font-size:10px;color:var(--mu);font-weight:600;padding:3px 5px;
+  text-align:left;border-bottom:.5px solid var(--dv);}
+.stbl td{padding:7px 5px;border-bottom:.5px solid var(--dv);font-size:12px;vertical-align:middle;}
+.stbl tr:last-child td{border-bottom:none;}
+.bdg{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;}
+.bdg.buy{background:rgba(74,156,31,.15);color:var(--G);}
+.bdg.sell{background:rgba(224,112,112,.15);color:var(--R);}
+
+
+/* ── 자산 구성바 ── */
+.asset-bar{display:flex;height:10px;border-radius:6px;overflow:hidden;margin:10px 0 7px;}
+.asset-bar div{transition:width .4s;}
+.aleg{display:flex;flex-wrap:wrap;gap:8px;}
+.aleg-i{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--sub);}
+.aleg-d{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+/* ── 분석 행 ── */
+.ar{display:flex;align-items:center;gap:6px;margin-bottom:7px;}
+.al{font-size:12px;font-weight:600;flex:1;min-width:0;}
+.av{font-size:12px;font-weight:700;min-width:58px;text-align:right;}
+
+/* ── 세그먼트 ── */
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;
+  background:var(--ibg);border-radius:10px;padding:4px;}
+.seg-b{border:none;background:none;border-radius:7px;padding:7px;
+  font-size:12px;font-weight:600;color:var(--mu);cursor:pointer;font-family:inherit;transition:all .15s;}
+.seg-b.on{background:var(--card);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.1);}
+
+/* ── 모달 ── */
+.mov{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.45);
+  align-items:flex-end;justify-content:center;}
+.mov.on{display:flex;}
+.mbox{background:var(--card);border-radius:18px 18px 0 0;
+  width:100%;max-width:480px;padding:20px 16px 34px;max-height:90vh;overflow-y:auto;}
+.mttl{font-size:15px;font-weight:700;margin-bottom:16px;}
+.mact{display:flex;gap:8px;margin-top:16px;}
+.mbtn{flex:1;padding:12px;border-radius:10px;font-size:14px;font-weight:700;
+  border:none;cursor:pointer;font-family:inherit;}
+.mbtn.ok{background:var(--G);color:#fff;}
+.mbtn.cl{background:var(--ibg);color:var(--text);}
+textarea.ifield{height:auto;padding:8px;resize:none;}
+
+/* ── 토스트 ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(14px);
+  background:var(--toast);color:#fff;padding:9px 18px;border-radius:20px;
+  font-size:13px;font-weight:500;opacity:0;transition:all .22s;z-index:999;
+  pointer-events:none;white-space:nowrap;}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── 빈 상태 ── */
+.empty{text-align:center;color:var(--mu);font-size:13px;padding:20px 0;}
+
+/* ── 월 그리드 ── */
+.mo-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;}
+.mo{display:flex;align-items:center;justify-content:center;height:28px;border-radius:7px;
+  font-size:11px;font-weight:600;cursor:pointer;background:var(--ibg);border:.5px solid var(--bd);
+  color:var(--sub);user-select:none;}
+.mo.on{background:var(--G);color:#fff;border-color:var(--G);}
+</style>
+</head>
+<body>
+
+<!-- ══ 헤더 ══ -->
+<div class="shd">
+  <div class="shd-top">
+    <div><div class="app-ttl">💰 내 재정 대시보드</div><div class="app-sub">지출 · 주식 · 자산 한눈에</div></div>
+    <div class="shd-date" id="hDate"></div>
+  </div>
+  <div class="tbar">
+    <button class="tbtn on" onclick="gTab(0)">💳 지출</button>
+    <button class="tbtn"    onclick="gTab(1)">💹 주식</button>
+    <button class="tbtn"    onclick="gTab(2)">🏦 자산</button>
+  </div>
+</div>
+
+<!-- ══════════ TAB 0 : 지출 ══════════ -->
+<div class="tc on" id="t0">
+
+  <!-- 지출 기록 카드 -->
+  <div class="card">
+    <div class="ch" style="margin-bottom:0;">
+      <!-- 년월 선택 구분자 -->
+      <div class="ym-wrap">
+        <button class="ym-btn" onclick="shiftMonth(-1)">‹</button>
+        <span class="ym-label" id="ymLabel"></span>
+        <button class="ym-btn" onclick="shiftMonth(1)">›</button>
+      </div>
+      <!-- 수입 표시 + 추가 버튼 -->
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span id="incomeChip" style="font-size:11px;color:var(--G);font-weight:700;"></span>
+        <button class="btn g" onclick="openExpModal()">+ 추가</button>
+      </div>
+    </div>
+
+    <!-- 지출 리스트 -->
+    <div style="margin-top:12px;" id="expList">
+      <div class="empty">지출 기록이 없습니다</div>
+    </div>
+  </div>
+
+  <!-- 분석·추세 카드 -->
+  <div class="card">
+    <div class="ch"><span class="ct">📊 분석 · 추세</span></div>
+    <div class="kgrid" id="expKpi">
+      <div class="kbox"><div class="kl">총 수입</div><div class="kv">—</div></div>
+      <div class="kbox"><div class="kl">총 지출</div><div class="kv">—</div></div>
+      <div class="kbox"><div class="kl">전월 대비</div><div class="kv">—</div></div>
+      <div class="kbox"><div class="kl">수입 − 지출</div><div class="kv">—</div></div>
+    </div>
+    <div class="pbar" id="expPbar"></div>
+    <div class="dv"></div>
+    <div class="sl">월별 지출 추세</div>
+    <div class="cwrap"><canvas id="trendC"></canvas></div>
+  </div>
+
+</div>
+
+<!-- ══════════ TAB 1 : 주식 ══════════ -->
+<div class="tc" id="t1">
+  <div class="card">
+    <div class="ch">
+      <span class="ct">💹 매매 기록</span>
+      <button class="btn g" onclick="openStk()">+ 추가</button>
+    </div>
+    <div id="stkTable"><div class="empty">매매 기록이 없습니다</div></div>
+  </div>
+  <div class="card">
+    <div class="ch"><span class="ct">📊 계좌별 손익</span></div>
+    <div class="kgrid" id="stkKpi"></div>
+    <div class="dv"></div>
+    <div class="sl">보유 종목</div>
+    <div id="holdList"></div>
+  </div>
+</div>
+
+<!-- ══════════ TAB 2 : 자산 ══════════ -->
+<div class="tc" id="t2">
+  <div class="card">
+    <div class="ch">
+      <span class="ct">🏦 자산 입력</span>
+      <button class="btn g" onclick="saveAst()">💾 저장</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+      <div class="irow"><label>💵 현금</label>
+        <input class="ifield" type="text" inputmode="numeric" id="a_cash" placeholder="0" oninput="fmtComma(this);renderAst()"></div>
+      <div class="irow"><label>💰 월간 지출 <span style="font-size:9px;color:var(--mu);">(자동)</span></label>
+        <input class="ifield" type="text" id="a_cfcash" placeholder="자동" readonly style="color:var(--mu);cursor:default;font-size:12px;"></div>
+      <div class="irow"><label>💹 주식 손익 <span style="font-size:9px;color:var(--mu);">(자동)</span></label>
+        <input class="ifield" type="text" id="a_stk" placeholder="자동" readonly style="color:var(--mu);cursor:default;font-size:12px;"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ch">
+      <span class="ct">💎 자산 현황</span>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <button class="btn" id="astYrAll"  onclick="setAstYr('all')"  style="font-size:11px;padding:4px 8px;">전체</button>
+        <button class="btn" id="astYr2026" onclick="setAstYr(2026)" style="font-size:11px;padding:4px 8px;">2026</button>
+      </div>
+    </div>
+    <div id="astWrap"></div>
+  </div>
+</div>
+
+<!-- ══════════ 지출 입력 모달 ══════════ -->
+<div class="mov" id="expModal">
+  <div class="mbox">
+    <div class="mttl">💳 지출 추가 <span id="expMoLbl" style="font-size:13px;color:var(--G);font-weight:600;"></span></div>
+
+    <!-- 카테고리 선택 -->
+    <div class="irow">
+      <label>항목</label>
+      <select class="ifield sel" id="ec_cat" onchange="onCatChange()">
+        <option value="income">💼 월급 (수입)</option>
+        <optgroup label="🧍 개인 지출">
+          <option value="food_solo">🍱 식비-혼자</option>
+          <option value="cafe">☕ 카페</option>
+          <option value="transport">🚇 교통비</option>
+          <option value="train">🚄 기차표</option>
+          <option value="shopping">🛍️ 쇼핑</option>
+          <option value="fixed">🏠 고정비</option>
+        </optgroup>
+        <optgroup label="💑 연인 지출">
+          <option value="food_couple">🍽️ 식비-둘이</option>
+          <option value="date">💑 데이트비</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div class="i2">
+      <div class="irow">
+        <label>년도</label>
+        <select class="ifield sel" id="ec_yr">
+          <option value="2024">2024년</option>
+          <option value="2025" selected>2025년</option>
+          <option value="2026">2026년</option>
+        </select>
+      </div>
+      <div class="irow">
+        <label>월</label>
+        <select class="ifield sel" id="ec_mo">
+          <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option>
+          <option value="4">4월</option><option value="5">5월</option><option value="6">6월</option>
+          <option value="7">7월</option><option value="8">8월</option><option value="9">9월</option>
+          <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="irow">
+      <label id="ec_amtLbl">금액 (원)</label>
+      <input class="ifield" type="text" inputmode="numeric" id="ec_amt" placeholder="0" oninput="fmtComma(this)">
+    </div>
+
+    <div class="irow">
+      <label>메모 (선택)</label>
+      <input class="ifield" type="text" id="ec_memo" placeholder="예: 마트 장보기">
+    </div>
+
+    <div class="mact">
+      <button class="mbtn cl" onclick="closeExpModal()">취소</button>
+      <button class="mbtn ok" onclick="addExp()">추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ 주식 모달 ══════════ -->
+<div class="mov" id="stkModal">
+  <div class="mbox">
+    <div class="mttl">💹 매매 기록 추가</div>
+
+    <div class="irow">
+      <label>유형</label>
+      <div class="seg">
+        <button class="seg-b on" id="seg_buy"  onclick="setSeg('buy')">📈 매수</button>
+        <button class="seg-b"    id="seg_sell" onclick="setSeg('sell')">📉 매도</button>
+      </div>
+    </div>
+
+    <!-- 계좌 / 년도 / 월 한 줄 -->
+    <div style="display:grid;grid-template-columns:2fr 1.2fr 1fr;gap:8px;">
+      <div class="irow">
+        <label>계좌</label>
+        <select class="ifield sel" id="sm_acct" onchange="if(stkType==='sell') buildSellOpts()">
+          <option value="domestic">🇰🇷 국내주식</option>
+          <option value="foreign">🇺🇸 해외주식</option>
+          <option value="isa">💼 ISA</option>
+          <option value="irp">🏦 IRP</option>
+        </select>
+      </div>
+      <div class="irow">
+        <label>년도</label>
+        <select class="ifield sel" id="sm_yr">
+          <option value="2024">2024년</option>
+          <option value="2025" selected>2025년</option>
+          <option value="2026">2026년</option>
+        </select>
+      </div>
+      <div class="irow">
+        <label>월</label>
+        <select class="ifield sel" id="sm_mo">
+          <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option>
+          <option value="4">4월</option><option value="5">5월</option><option value="6">6월</option>
+          <option value="7">7월</option><option value="8">8월</option><option value="9">9월</option>
+          <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 매수: 직접 입력 / 매도: 보유 종목 선택 -->
+    <div class="irow" id="buyNameRow">
+      <label>종목명</label>
+      <input class="ifield" type="text" id="sm_name" placeholder="종목명 입력">
+    </div>
+    <div class="irow" id="sellNameRow" style="display:none;">
+      <label>종목 선택 (보유 종목)</label>
+      <select class="ifield sel" id="sm_sellName"></select>
+    </div>
+
+    <div class="i2">
+      <div class="irow">
+        <label>수량 (주)</label>
+        <input class="ifield" type="text" inputmode="numeric" id="sm_qty" placeholder="0" oninput="fmtComma(this);stkPreview()">
+      </div>
+      <div class="irow">
+        <label>단가 (원)</label>
+        <input class="ifield" type="text" inputmode="numeric" id="sm_price" placeholder="0" oninput="fmtComma(this);stkPreview()">
+      </div>
+    </div>
+    <div id="stkPrev" style="text-align:right;font-size:11px;color:var(--mu);margin-top:-6px;margin-bottom:8px;"></div>
+
+    <div class="irow">
+      <label>메모 (매매 이유)</label>
+      <textarea class="ifield" id="sm_memo" rows="2" placeholder="예: 실적 개선 기대로 매수" style="padding:8px;"></textarea>
+    </div>
+
+    <div class="mact">
+      <button class="mbtn cl" onclick="closeStk()">취소</button>
+      <button class="mbtn ok" onclick="addStk()">추가</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+// 상수
+// ══════════════════════════════════════════
+const FEE = 0.015;
+
+const CAT_META = {
+  income:      {lbl:'💼 월급',    icon:'💼', color:'#639922', isIncome:true},
+  food_solo:   {lbl:'🍱 식비-혼자', icon:'🍱', color:'#378ADD'},
+  cafe:        {lbl:'☕ 카페',      icon:'☕', color:'#F08030'},
+  transport:   {lbl:'🚇 교통비',   icon:'🚇', color:'#9B59B6'},
+  train:       {lbl:'🚄 기차표',   icon:'🚄', color:'#1ABC9C'},
+  shopping:    {lbl:'🛍️ 쇼핑',    icon:'🛍️', color:'#E91E8C'},
+  fixed:       {lbl:'🏠 고정비',   icon:'🏠', color:'#795548'},
+  food_couple: {lbl:'🍽️ 식비-둘이', icon:'🍽️', color:'#E24B4A'},
+  date:        {lbl:'💑 데이트비', icon:'💑', color:'#E91E63'},
+};
+
+// ══════════════════════════════════════════
+// 상태
+// ══════════════════════════════════════════
+let S = {
+  // exp 레코드: [{id, yr, mo, cat, amt, memo}]
+  expRec: [],
+  stk: [],
+  ast: {cash:0, dep:0, stk:0, debt:0},
+  yr: new Date().getFullYear(),
+  mo: new Date().getMonth() + 1,
+};
+
+function load(){
+  try{ const r=localStorage.getItem('fin25v3'); if(r) Object.assign(S, JSON.parse(r)); }catch(e){}
+}
+function persist(){ localStorage.setItem('fin25v3', JSON.stringify(S)); }
+
+// ══════════════════════════════════════════
+// 탭
+// ══════════════════════════════════════════
+function gTab(i){
+  document.querySelectorAll('.tbtn').forEach((b,j)=>b.classList.toggle('on',j===i));
+  document.querySelectorAll('.tc').forEach((c,j)=>c.classList.toggle('on',j===i));
+  if(i===0) renderExp();
+  if(i===1) renderStk();
+  if(i===2){ loadAstFields(); setAstYr(astYrSel); }
+}
+
+// ══════════════════════════════════════════
+// 년월 네비게이션
+// ══════════════════════════════════════════
+function updateYmLabel(){
+  document.getElementById('ymLabel').textContent = `${S.yr}.${String(S.mo).padStart(2,'0')}`;
+}
+function shiftMonth(d){
+  S.mo += d;
+  if(S.mo > 12){ S.mo = 1; S.yr++; }
+  if(S.mo < 1){ S.mo = 12; S.yr--; }
+  renderExp();
+}
+
+// ══════════════════════════════════════════
+// TAB 0 — 지출
+// ══════════════════════════════════════════
+let trendInst = null;
+
+function renderExp(){
+  updateYmLabel();
+
+  const recs = S.expRec.filter(r => r.yr === S.yr && r.mo === S.mo);
+  const income = recs.find(r => r.cat === 'income');
+  const incomeAmt = income ? income.amt : 0;
+  const expRecs = recs.filter(r => r.cat !== 'income');
+  const totalExp = expRecs.reduce((s,r)=>s+r.amt, 0);
+
+  // 수입 칩
+  const chip = document.getElementById('incomeChip');
+  chip.textContent = incomeAmt > 0 ? `💼 ${fw(incomeAmt)}` : '';
+
+  // 지출 리스트
+  const listEl = document.getElementById('expList');
+  if(!recs.length){
+    listEl.innerHTML = '<div class="empty">지출 기록이 없습니다</div>';
+  } else {
+    // 수입 먼저, 지출 그 다음
+    const sorted = [
+      ...recs.filter(r=>r.cat==='income'),
+      ...recs.filter(r=>r.cat!=='income').sort((a,b)=>{
+        const order = Object.keys(CAT_META);
+        return order.indexOf(a.cat) - order.indexOf(b.cat);
+      })
+    ];
+    let h = '<div class="exp-list">';
+    sorted.forEach(r => {
+      const m = CAT_META[r.cat] || {lbl:r.cat, icon:'📌', color:'#999'};
+      const isInc = r.cat === 'income';
+      h += `<div class="exp-item">
+        <div class="exp-info">
+          <div class="exp-name" style="display:flex;align-items:center;gap:6px;">
+            <span>${m.lbl}</span>
+            ${isInc && r.memo ? `<span style="font-size:10px;color:var(--mu);font-weight:400;">${r.memo}</span>` : ''}
+          </div>
+          ${!isInc ? `<div class="exp-meta">${r.memo || '—'}</div>` : ''}
+        </div>
+        <div class="exp-amt" style="color:${isInc?'var(--G)':'var(--text)'};">${isInc?'+':''}${fw(r.amt)}</div>
+        <button class="exp-del" onclick="delExp(${r.id})">✕</button>
+      </div>`;
+    });
+    if(expRecs.length > 0){
+      h += `<div class="exp-sum">
+        <span class="exp-sum-lbl">총 지출</span>
+        <span class="exp-sum-val cr">${fw(totalExp)}</span>
+      </div>`;
+    }
+    h += '</div>';
+    listEl.innerHTML = h;
+  }
+
+  // KPI — 총수입 / 총지출 / 전월대비 / 수입-지출
+  const rem = incomeAmt - totalExp;
+  // 전월 데이터
+  let prevMo = S.mo - 1, prevYr = S.yr;
+  if(prevMo < 1){ prevMo = 12; prevYr--; }
+  const prevExp = S.expRec.filter(r=>r.yr===prevYr&&r.mo===prevMo&&r.cat!=='income').reduce((s,r)=>s+r.amt,0);
+  const delta = totalExp - prevExp;
+  const deltaStr = prevExp===0&&totalExp===0 ? '—' : (delta===0?'±0원':(delta>0?'+':'')+fw(delta));
+  const deltaCls = delta>0?'cr':delta<0?'cg':'';
+
+  document.getElementById('expKpi').innerHTML = `
+    <div class="kbox"><div class="kl">총 수입</div><div class="kv">${fw(incomeAmt)}</div></div>
+    <div class="kbox"><div class="kl">총 지출</div><div class="kv">${fw(totalExp)}</div></div>
+    <div class="kbox"><div class="kl">수입 − 지출</div><div class="kv ${rem>0?'p-pos':rem<0?'p-neg':''}">${rem>0?'+':''}${fw(rem)}</div></div>
+    <div class="kbox"><div class="kl">전월 대비</div><div class="kv ${delta>0?'p-neg':delta<0?'p-pos':''}">${deltaStr}</div></div>
+  `;
+
+  // 진행바
+  const pct = incomeAmt ? Math.round(totalExp/incomeAmt*100) : 0;
+  const pc = Math.min(pct, 100);
+  const pc2 = pct<60?'var(--B)':pct<85?'var(--G)':'var(--R)';
+  document.getElementById('expPbar').innerHTML = `
+    <div class="pm"><span>지출 ${fw(totalExp)}</span><span>수입 ${fw(incomeAmt)}</span></div>
+    <div class="pt"><div class="pf" style="width:${pc}%;background:${pc2};"></div></div>
+  `;
+
+  // 추세 (12개월 — 현재 월 기준 이전 12개)
+  renderTrend();
+}
+
+function renderTrend(){
+  // 현재 표시 월 기준 최근 12개월
+  const labels = [], vals = [];
+  for(let i=11; i>=0; i--){
+    let m = S.mo - i, y = S.yr;
+    if(m <= 0){ m += 12; y--; }
+    const tot = S.expRec
+      .filter(r => r.yr===y && r.mo===m && r.cat!=='income')
+      .reduce((s,r)=>s+r.amt, 0);
+    labels.push(`${y===S.yr?'':y+"·"}${m}월`);
+    vals.push(tot);
+  }
+  if(trendInst) trendInst.destroy();
+  trendInst = new Chart(document.getElementById('trendC'), {
+    type:'line',
+    data:{
+      labels,
+      datasets:[{
+        data:vals,
+        borderColor:'#639922', backgroundColor:'rgba(99,153,34,.1)',
+        tension:.35, fill:true, pointRadius:3, pointBackgroundColor:'#639922', borderWidth:2
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{display:false}, ticks:{font:{size:9}, maxRotation:0}},
+        y:{grid:{color:'rgba(0,0,0,.05)'}, ticks:{font:{size:9}, callback:v=>(v>=10000?(v/10000)+'만':v)}}
+      }
+    }
+  });
+}
+
+// 지출 모달
+function onCatChange(){
+  const cat = document.getElementById('ec_cat').value;
+  document.getElementById('ec_amtLbl').textContent =
+    cat === 'income' ? '금액 — 세후 실수령액 (원)' : '금액 (원)';
+}
+
+function openExpModal(){
+  document.getElementById('ec_cat').value = 'food_solo';
+  document.getElementById('ec_yr').value  = S.yr;
+  document.getElementById('ec_mo').value  = S.mo;
+  document.getElementById('ec_amt').value = '';
+  document.getElementById('ec_memo').value = '';
+  document.getElementById('expMoLbl').textContent = `— ${S.yr}.${String(S.mo).padStart(2,'0')}`;
+  onCatChange();
+  document.getElementById('expModal').classList.add('on');
+}
+function closeExpModal(){ document.getElementById('expModal').classList.remove('on'); }
+
+function addExp(){
+  const cat  = document.getElementById('ec_cat').value;
+  const yr   = +document.getElementById('ec_yr').value;
+  const mo   = +document.getElementById('ec_mo').value;
+  const amt  = parseComma(document.getElementById('ec_amt').value);
+  const memo = document.getElementById('ec_memo').value.trim();
+  if(!amt){ showToast('금액을 입력해주세요'); return; }
+
+  // 수입이면 같은 년월 기존 수입 레코드 교체
+  if(cat === 'income'){
+    S.expRec = S.expRec.filter(r => !(r.yr===yr && r.mo===mo && r.cat==='income'));
+  }
+
+  S.expRec.push({ id:Date.now(), yr, mo, cat, amt, memo });
+  persist();
+  closeExpModal();
+  // 추가한 월로 이동
+  S.yr = yr; S.mo = mo;
+  renderExp();
+  showToast('추가 완료 ✓');
+}
+
+function delExp(id){
+  S.expRec = S.expRec.filter(r => r.id !== id);
+  persist();
+  renderExp();
+  showToast('삭제됨');
+}
+
+// ══════════════════════════════════════════
+// TAB 1 — 주식
+// ══════════════════════════════════════════
+let stkType = 'buy';
+
+function setSeg(t){
+  stkType = t;
+  document.getElementById('seg_buy').classList.toggle('on', t==='buy');
+  document.getElementById('seg_sell').classList.toggle('on', t==='sell');
+  document.getElementById('buyNameRow').style.display  = t==='buy'  ? '' : 'none';
+  document.getElementById('sellNameRow').style.display = t==='sell' ? '' : 'none';
+  if(t==='sell') buildSellOpts();
+  stkPreview();
+}
+
+function buildSellOpts(){
+  const acct = document.getElementById('sm_acct').value;
+  // 선택한 계좌에서 FIFO로 보유 중인 종목만
+  const buyQ = {};
+  [...S.stk]
+    .filter(s => s.acct === acct)
+    .sort((a,b)=> a.yr*10000+a.month*100 - (b.yr*10000+b.month*100))
+    .forEach(s => {
+      if(s.type==='buy'){
+        if(!buyQ[s.name]) buyQ[s.name]=0;
+        buyQ[s.name]+=s.qty;
+      } else {
+        if(buyQ[s.name]) buyQ[s.name]=Math.max(0,buyQ[s.name]-s.qty);
+      }
+    });
+  const names = Object.entries(buyQ).filter(([,q])=>q>0).map(([n])=>n);
+  const acctLbl = {domestic:'국내주식',foreign:'해외주식',isa:'ISA',irp:'IRP'}[acct];
+  const sel = document.getElementById('sm_sellName');
+  sel.innerHTML = names.length
+    ? names.map(n=>`<option value="${n}">${n}</option>`).join('')
+    : `<option value="">${acctLbl} 보유 종목 없음</option>`;
+}
+
+function stkPreview(){
+  const qty   = parseComma(document.getElementById('sm_qty').value);
+  const price = parseComma(document.getElementById('sm_price').value);
+  if(qty && price){
+    const tot = qty*price, fee = Math.round(tot*FEE/100);
+    document.getElementById('stkPrev').textContent = `총 ${fw(tot)} · 수수료 약 ${fw(fee)}`;
+  } else document.getElementById('stkPrev').textContent='';
+}
+
+function openStk(){
+  stkType = 'buy'; setSeg('buy');
+  document.getElementById('sm_acct').value  = 'domestic';
+  document.getElementById('sm_yr').value   = S.yr;
+  document.getElementById('sm_mo').value   = S.mo;
+  document.getElementById('sm_name').value  = '';
+  document.getElementById('sm_qty').value   = '';
+  document.getElementById('sm_price').value = '';
+  document.getElementById('sm_memo').value  = '';
+  document.getElementById('stkPrev').textContent = '';
+  document.getElementById('stkModal').classList.add('on');
+}
+function closeStk(){ document.getElementById('stkModal').classList.remove('on'); }
+
+function addStk(){
+  const qty   = parseComma(document.getElementById('sm_qty').value);
+  const price = parseComma(document.getElementById('sm_price').value);
+  const name  = stkType==='buy'
+    ? document.getElementById('sm_name').value.trim()
+    : document.getElementById('sm_sellName').value.trim();
+  if(!name||!qty||!price){ showToast('종목명·수량·단가를 입력해주세요'); return; }
+  S.stk.push({
+    id:Date.now(), type:stkType, name,
+    acct: document.getElementById('sm_acct').value,
+    yr:+document.getElementById('sm_yr').value,
+    month:+document.getElementById('sm_mo').value,
+    qty, price, fee:FEE,
+    memo:document.getElementById('sm_memo').value.trim()
+  });
+  persist(); closeStk(); renderStk(); showToast('기록 추가 ✓');
+}
+
+function delStk(id){ S.stk=S.stk.filter(s=>s.id!==id); persist(); renderStk(); showToast('삭제됨'); }
+
+function stockStats(){
+  // 종목별 매수 큐 (FIFO): {name: [{qty, price}]}
+  const buyQ = {};
+  const hold = {};
+  let totalReal = 0, tFee = 0;
+
+  // 시간순 정렬 후 처리
+  const sorted = [...S.stk].sort((a,b)=> a.yr*10000+a.month*100 - (b.yr*10000+b.month*100));
+
+  sorted.forEach(s => {
+    const fee = Math.round(s.qty * s.price * s.fee / 100);
+    tFee += fee;
+    if(s.type === 'buy'){
+      if(!buyQ[s.name])  buyQ[s.name]  = [];
+      if(!hold[s.name])  hold[s.name]  = {qty:0, cost:0};
+      buyQ[s.name].push({qty: s.qty, price: s.price});
+      hold[s.name].qty  += s.qty;
+      hold[s.name].cost += s.qty * s.price;
+    } else {
+      // FIFO로 매수가 차감
+      let remaining = s.qty;
+      let costBasis = 0;
+      if(buyQ[s.name]){
+        while(remaining > 0 && buyQ[s.name].length > 0){
+          const head = buyQ[s.name][0];
+          if(head.qty <= remaining){
+            costBasis += head.qty * head.price;
+            remaining -= head.qty;
+            buyQ[s.name].shift();
+          } else {
+            costBasis += remaining * head.price;
+            head.qty  -= remaining;
+            remaining  = 0;
+          }
+        }
+      }
+      const sellAmt = s.qty * s.price;
+      totalReal += sellAmt - costBasis - fee;
+      if(hold[s.name]){
+        hold[s.name].qty  = Math.max(0, hold[s.name].qty  - s.qty);
+        hold[s.name].cost = Math.max(0, hold[s.name].cost - costBasis);
+      }
+    }
+  });
+  return { real: totalReal, tFee, hold };
+}
+
+// 계좌별 손익도 동일 FIFO 방식
+function acctStats(){
+  const ACCTS = ['domestic','foreign','isa','irp'];
+  const result = {};
+  ACCTS.forEach(acct => {
+    const buyQ = {};
+    let real = 0;
+    const sorted = [...S.stk].filter(s=>s.acct===acct)
+      .sort((a,b)=> a.yr*10000+a.month*100 - (b.yr*10000+b.month*100));
+    sorted.forEach(s => {
+      const fee = Math.round(s.qty * s.price * s.fee / 100);
+      if(s.type === 'buy'){
+        if(!buyQ[s.name]) buyQ[s.name] = [];
+        buyQ[s.name].push({qty: s.qty, price: s.price});
+      } else {
+        let remaining = s.qty, costBasis = 0;
+        if(buyQ[s.name]){
+          while(remaining > 0 && buyQ[s.name].length > 0){
+            const head = buyQ[s.name][0];
+            if(head.qty <= remaining){ costBasis += head.qty*head.price; remaining -= head.qty; buyQ[s.name].shift(); }
+            else { costBasis += remaining*head.price; head.qty -= remaining; remaining = 0; }
+          }
+        }
+        real += s.qty*s.price - costBasis - fee;
+      }
+    });
+    result[acct] = { real, hasData: sorted.length > 0 };
+  });
+  return result;
+}
+
+function renderStk(){
+  const wrap = document.getElementById('stkTable');
+  if(!S.stk.length){
+    wrap.innerHTML='<div class="empty">매매 기록이 없습니다</div>';
+  } else {
+    let h=`<table class="stbl"><thead><tr>
+      <th>종목</th><th>계좌</th><th>유형</th><th>수량</th><th>단가</th><th>금액</th><th></th>
+    </tr></thead><tbody>`;
+    [...S.stk].sort((a,b)=>a.yr*100+a.month - (b.yr*100+b.month)).forEach(s=>{
+      const tot=s.qty*s.price;
+      const acctLbl={domestic:'국내',foreign:'해외',isa:'ISA',irp:'IRP'}[s.acct||'domestic'];
+      h+=`<tr>
+        <td><b>${s.name}</b>
+          <div style="font-size:10px;color:var(--mu);">${s.yr}.${String(s.month).padStart(2,'0')}${s.memo?' · '+s.memo.slice(0,12)+(s.memo.length>12?'…':''):''}</div>
+        </td>
+        <td style="font-size:10px;color:var(--mu);">${acctLbl}</td>
+        <td><span class="bdg ${s.type}">${s.type==='buy'?'매수':'매도'}</span></td>
+        <td>${s.qty}주</td>
+        <td>${fw(s.price)}</td>
+        <td><b>${fw(tot)}</b></td>
+        <td><button onclick="delStk(${s.id})" style="background:none;border:none;color:var(--mu);cursor:pointer;padding:2px;font-size:13px;">✕</button></td>
+      </tr>`;
+    });
+    wrap.innerHTML=h+'</tbody></table>';
+  }
+
+  const {real, tFee, hold} = stockStats();
+
+  // 계좌별 손익
+  const ACCTS = {domestic:'🇰🇷 국내', foreign:'🇺🇸 해외', isa:'💼 ISA', irp:'🏦 IRP'};
+  const aStats = acctStats();
+  document.getElementById('stkKpi').innerHTML = Object.entries(ACCTS).map(([k,lbl])=>{
+    const {real:v, hasData} = aStats[k];
+    const cls = v > 0 ? 'p-pos' : v < 0 ? 'p-neg' : '';
+    return `<div class="kbox"><div class="kl">${lbl}</div><div class="kv ${cls}">${hasData?(v>0?'+':'')+fw(v):'—'}</div></div>`;
+  }).join('');
+
+  const ha=Object.entries(hold).filter(([,v])=>v.qty>0);
+  document.getElementById('holdList').innerHTML=ha.length
+    ? ha.map(([n,v])=>`<div class="ar"><span class="al">${n}</span><span style="font-size:11px;color:var(--mu);">${v.qty}주 보유</span><span class="av">${fw(v.cost)}</span></div>`).join('')
+    : '<div class="empty" style="font-size:12px;padding:8px 0;">보유 종목 없음</div>';
+}
+
+// ══════════════════════════════════════════
+// TAB 2 — 자산
+// ══════════════════════════════════════════
+let astYrSel = new Date().getFullYear(); // 'all' or 년도숫자
+
+function setAstYr(v){
+  astYrSel = v;
+  document.getElementById('astYrAll').className  = 'btn'+(v==='all' ?' g':'');
+  document.getElementById('astYr2026').className = 'btn'+(v===2026  ?' g':'');
+  // inline style 유지
+  ['astYrAll','astYr2026'].forEach(id=>{
+    document.getElementById(id).style.cssText='font-size:11px;padding:4px 8px;';
+  });
+  renderAst();
+}
+
+function loadAstFields(){
+  document.getElementById('a_cash').value = S.ast.cash ? S.ast.cash.toLocaleString('ko-KR') : '';
+  const {real} = stockStats();
+  document.getElementById('a_stk').value = (real>0?'+':'')+real.toLocaleString('ko-KR');
+  // 현금 누적 반영
+  updateCfCash();
+}
+
+function updateCfCash(){
+  const cash = parseComma(document.getElementById('a_cash').value)||S.ast.cash||0;
+  // 전체 월 누적 수입-지출
+  const cfTotal = S.expRec
+    .filter(r => r.cat !== 'income')
+    .reduce((s,r) => s - r.amt, 0) +
+    S.expRec
+    .filter(r => r.cat === 'income')
+    .reduce((s,r) => s + r.amt, 0);
+  const cfCash = cash + cfTotal;
+  const el = document.getElementById('a_cfcash');
+  if(el) el.value = (cfCash>0?'+':'')+cfCash.toLocaleString('ko-KR')+'원';
+}
+
+function saveAst(){
+  S.ast.cash = parseComma(document.getElementById('a_cash').value);
+  persist();
+  loadAstFields();
+  renderAst();
+  showToast('자산 저장 완료 ✓');
+}
+
+function renderAst(){
+  const cash  = parseComma(document.getElementById('a_cash').value)||S.ast.cash||0;
+  const {real} = stockStats();
+
+  // 자동 필드 갱신
+  document.getElementById('a_stk').value = (real>0?'+':'')+real.toLocaleString('ko-KR');
+  updateCfCash();
+
+  // 년도 필터
+  const tExpYTD = S.expRec.filter(r=>(astYrSel==='all'||r.yr===astYrSel)&&r.cat!=='income').reduce((s,r)=>s+r.amt,0);
+  const tIncYTD = S.expRec.filter(r=>(astYrSel==='all'||r.yr===astYrSel)&&r.cat==='income').reduce((s,r)=>s+r.amt,0);
+  const cf = tIncYTD - tExpYTD;
+
+  // 현금 누적 반영 (기준 현금 + 전체 수입-지출)
+  const cfAll = S.expRec.filter(r=>r.cat==='income').reduce((s,r)=>s+r.amt,0)
+              - S.expRec.filter(r=>r.cat!=='income').reduce((s,r)=>s+r.amt,0);
+  const accCash = cash + cfAll; // 지출 누적 반영 현금
+
+  const lbl = astYrSel==='all' ? '전체 기간' : `${astYrSel}년`;
+
+  document.getElementById('astWrap').innerHTML=`
+    <div class="kgrid" style="margin-bottom:10px;">
+      <div class="kbox"><div class="kl">💵 기준 현금</div><div class="kv">${fw(cash)}</div></div>
+      <div class="kbox"><div class="kl">💰 누적 반영 현금</div><div class="kv ${accCash>=cash?'p-pos':''}">${fw(accCash)}</div></div>
+      <div class="kbox"><div class="kl">💹 주식 실현 손익</div><div class="kv ${real>0?'p-pos':real<0?'p-neg':''}">${real>0?'+':''}${fw(real)}</div></div>
+      <div class="kbox"><div class="kl">🏆 총 자산 추정</div><div class="kv">${fw(accCash+real)}</div></div>
+    </div>
+    <div class="dv"></div>
+    <div class="sl">${lbl} 현금 흐름</div>
+    <div class="ar"><span class="al">💼 수입 합계</span><span class="av p-pos">+${fw(tIncYTD)}</span></div>
+    <div class="ar"><span class="al">💳 지출 합계</span><span class="av p-neg">-${fw(tExpYTD)}</span></div>
+    <div class="ar"><span class="al">💹 주식 실현 손익</span>
+      <span class="av ${real>0?'p-pos':real<0?'p-neg':''}">${real>0?'+':''}${fw(real)}</span></div>
+    <div class="ar" style="padding-top:10px;border-top:.5px solid var(--dv);margin-top:4px;">
+      <span class="al" style="font-size:13px;font-weight:800;">💰 수입 − 지출 + 손익</span>
+      <span class="av ${cf+real>=0?'p-pos':'p-neg'}" style="font-size:14px;font-weight:800;">${cf+real>=0?'+':''}${fw(cf+real)}</span>
+    </div>
+  `;
+}
+
+// ══════════════════════════════════════════
+// 유틸
+// ══════════════════════════════════════════
+// 입력창 실시간 콤마 포맷
+function fmtComma(el){
+  const raw = el.value.replace(/[^\d]/g,'');
+  el.value = raw ? Number(raw).toLocaleString('ko-KR') : '';
+}
+// 콤마 제거 후 숫자 반환
+function parseComma(str){ return +(str||'').replace(/,/g,'') || 0; }
+
+function fw(n){
+  if(n===0) return '0원';
+  const a=Math.abs(n); let s='';
+  if(a>=100000000) s=Math.floor(a/100000000)+'억'+(Math.floor((a%100000000)/10000)>0?' '+Math.floor((a%100000000)/10000)+'만':'')+'원';
+  else if(a>=10000) s=Math.floor(a/10000)+'만'+(a%10000>0?' '+(a%10000).toLocaleString():'')+'원';
+  else s=a.toLocaleString()+'원';
+  return (n<0?'-':'')+s;
+}
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('on');
+  setTimeout(()=>t.classList.remove('on'),2200);
+}
+
+// ══════════════════════════════════════════
+// 초기화
+// ══════════════════════════════════════════
+load();
+document.getElementById('hDate').textContent =
+  new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
+renderExp();
+renderStk();
+</script>
+</body>
+</html>
